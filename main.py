@@ -105,7 +105,7 @@ async def auto_night_lock():
         now = datetime.now(bd_tz)
         if now.hour == 2 and now.minute == 0:
             await lock_group()
-            await client.send_message(GROUP_ID, "🌙 রাত ২টা — গ্রুপটি স্বয়ংক্রিয়ভাবে বন্ধ হয়েছে (সকাল ৬টা পর্যন্ত)।")
+            await client.send_message(GROUP_ID, "🌙 এখন রাত ২টা গ্রুপটি স্বয়ংক্রিয়ভাবে বন্ধ হয়েছে (সকাল ৬টা পর্যন্ত)।")
             await asyncio.sleep(4 * 3600)  # Wait 4 hours
             await unlock_group(auto=True)
         await asyncio.sleep(30)  # Check every 30 seconds
