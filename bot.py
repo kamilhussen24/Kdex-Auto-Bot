@@ -3,6 +3,8 @@ from telethon import TelegramClient, events, functions
 from telethon.tl.types import ChatBannedRights
 from datetime import datetime
 import asyncio, pytz, os
+from aiohttp import web
+import aiohttp_cors
 
 # -------------------------------
 # Environment Variables
@@ -11,11 +13,14 @@ API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 GROUP_ID = int(os.getenv("GROUP_ID"))
+WEBHOOK_URL = os.getenv("WEBHOOK_URL", "https://your-app.onrender.com/webhook")  # Render URL + /webhook
 
 # -------------------------------
 # Initialize Client
 # -------------------------------
-client = TelegramClient("bot", API_ID, API_HASH).start(bot_token=BOT_TOKEN)
+client = TelegramClient("bot", API_ID, API_HASH)
+
+# Timezone
 bd_tz = pytz.timezone("Asia/Dhaka")
 
 # -------------------------------
@@ -123,7 +128,7 @@ async def start_handler(event):
     await event.reply(message)
 
 # -------------------------------
-# Auto Night Lock (2:00 AM – 6:00 AM)
+# Auto Night Lock (Webhook-এর জন্য scheduled task)
 # -------------------------------
 async def auto_night_lock():
     print("[AUTO LOCK] চালু হয়েছে...")
@@ -142,16 +147,49 @@ async def auto_night_lock():
             await asyncio.sleep(60)
 
 # -------------------------------
+# Webhook Handler
+# -------------------------------
+async def webhook_handler(request):
+    update = await request.json()
+    await client.handle_update(update)
+    return web.Response(text="OK")
+
+# -------------------------------
+# Main App (AIOHTTP Server)
+# -------------------------------
+async def start_webhook():
+    await client.start(bot_token=BOT_TOKEN)
+    await client.send_to(777000, f"{WEBHOOK_URL}")  # Telegram webhook set করো (secret=12345)
+    await client.send_to(777000, f"webhook_info?secret=12345")  # Check webhook
+
+    app = web.Application()
+    cors = aiohttp_cors.setup(app, defaults={
+        "*": aiohttp_cors.ResourceOptions(
+            allow_credentials=True,
+            expose_headers=("X-Custom-Server-Header",),
+            allow_headers=("X-Requested-with", "Content-Type"),
+            allow_methods=["GET", "POST"]
+        )
+    })
+    cors.add(app.router.add_post('/webhook', webhook_handler))
+
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', 10000)  # Render port
+    await site.start()
+    print(f"Webhook server started on port 10000")
+
+# -------------------------------
 # Main
 # -------------------------------
 async def main():
-    print("KDex Group Lock Bot চালু হয়েছে...")
+    print("KDex Group Lock Bot চালু হয়েছে (Webhook Mode)...")
     asyncio.create_task(auto_night_lock())
+    await start_webhook()
     await client.run_until_disconnected()
 
 # -------------------------------
 # Start
 # -------------------------------
 if __name__ == "__main__":
-    with client:
-        client.loop.run_until_complete(main())
+    asyncio.run(main())
