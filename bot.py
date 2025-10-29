@@ -13,18 +13,18 @@ API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 GROUP_ID = int(os.getenv("GROUP_ID"))
-WEBHOOK_URL = os.getenv("WEBHOOK_URL")  # অবশ্যই Render URL + /webhook
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")  # https://your-app.onrender.com/webhook
 
 # -------------------------------
-# Initialize Client
+# Initialize Client (START WITH BOT TOKEN)
 # -------------------------------
-client = TelegramClient("bot", API_ID, API_HASH)
+client = TelegramClient("bot", API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 
 # Timezone
 bd_tz = pytz.timezone("Asia/Dhaka")
 
 # -------------------------------
-# Admin Check: Owner + Admin
+# Admin Check
 # -------------------------------
 async def is_admin(event):
     if event.is_private:
@@ -109,7 +109,7 @@ async def unlock_handler(event):
     await event.reply("গ্রুপ আনলক করা হয়েছে।")
 
 # -------------------------------
-# /start (No Duplicate)
+# /start
 # -------------------------------
 @client.on(events.NewMessage(pattern=r"(?i)^/start(@\w+)?$", outgoing=False))
 async def start_handler(event):
@@ -147,7 +147,7 @@ async def auto_night_lock():
             await asyncio.sleep(60)
 
 # -------------------------------
-# Webhook Handler (Error Handling)
+# Webhook Handler (Safe)
 # -------------------------------
 async def webhook_handler(request):
     try:
@@ -162,16 +162,13 @@ async def webhook_handler(request):
 # Start Webhook Server
 # -------------------------------
 async def start_webhook():
-    # Start client with bot token
-    await client.start(bot_token=BOT_TOKEN)
-
-    # Optional: Log to Telegram's 777000 (Telegram service messages)
+    # Client already started above
     try:
-        await client.send_message(777000, f"Webhook set to: {WEBHOOK_URL}")
+        me = await client.get_me()
+        print(f"Bot logged in as @{me.username}")
     except:
-        pass  # Ignore if can't send
+        print("Bot login failed")
 
-    # Setup AIOHTTP app
     app = web.Application()
     cors = aiohttp_cors.setup(app, defaults={
         "*": aiohttp_cors.ResourceOptions(
@@ -183,25 +180,24 @@ async def start_webhook():
     })
     cors.add(app.router.add_post('/webhook', webhook_handler))
 
-    # Run server
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, '0.0.0.0', int(os.getenv("PORT", 10000)))
+    port = int(os.getenv("PORT", 10000))
+    site = web.TCPSite(runner, '0.0.0.0', port)
     await site.start()
-    print(f"Webhook server started at {WEBHOOK_URL}")
+    print(f"Webhook server started on port {port}")
 
 # -------------------------------
-# Main Function
+# Main
 # -------------------------------
 async def main():
     print("KDex Group Lock Bot চালু হয়েছে (Webhook Mode)...")
     asyncio.create_task(auto_night_lock())
     await start_webhook()
-    # Keep the event loop running forever
-    await asyncio.Event().wait()
+    await asyncio.Event().wait()  # চিরকাল চালু
 
 # -------------------------------
-# Entry Point
+# Run
 # -------------------------------
 if __name__ == "__main__":
     asyncio.run(main())
