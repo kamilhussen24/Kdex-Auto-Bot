@@ -1,17 +1,25 @@
 from telethon import TelegramClient, events, functions
 from telethon.tl.types import ChannelParticipantsAdmins, ChatBannedRights
-from datetime import datetime, timedelta
+from datetime import datetime
 import asyncio, pytz, os
 
+# -------------------------------
+# Environment Variables
+# -------------------------------
 API_ID = int(os.getenv("API_ID", 1234567))
 API_HASH = os.getenv("API_HASH", "your_api_hash")
 BOT_TOKEN = os.getenv("BOT_TOKEN", "your_bot_token")
-GROUP_ID = int(os.getenv("GROUP_ID", -1003083776944))
+GROUP_ID = int(os.getenv("GROUP_ID", "-1003083776944"))  # Ensure it's a string in ENV
 
+# -------------------------------
+# Initialize Client
+# -------------------------------
 client = TelegramClient("bot", API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 bd_tz = pytz.timezone("Asia/Dhaka")
 
-# --- Admin Check ---
+# -------------------------------
+# Admin Check
+# -------------------------------
 async def is_admin(event):
     try:
         admins = await client.get_participants(event.chat_id, filter=ChannelParticipantsAdmins)
@@ -19,13 +27,17 @@ async def is_admin(event):
     except:
         return False
 
-# --- Lock Group ---
+# -------------------------------
+# Lock Group
+# -------------------------------
 async def lock_group(duration_hours=None):
     rights = ChatBannedRights(send_messages=True)
     try:
         await client(functions.messages.EditChatDefaultBannedRights(peer=GROUP_ID, banned_rights=rights))
         if duration_hours:
-            await client.send_message(GROUP_ID, f"🔒 গ্রুপটি {duration_hours} ঘন্টার জন্য বন্ধ রাখা হয়েছে। অনুগ্রহ করে অপেক্ষা করুন 💬")
+            await client.send_message(
+                GROUP_ID, f"🔒 গ্রুপটি {duration_hours} ঘন্টার জন্য বন্ধ রাখা হয়েছে। অনুগ্রহ করে অপেক্ষা করুন 💬"
+            )
             await asyncio.sleep(duration_hours * 3600)
             await unlock_group(auto=True)
         else:
@@ -33,7 +45,9 @@ async def lock_group(duration_hours=None):
     except Exception as e:
         print("Lock error:", e)
 
-# --- Unlock Group ---
+# -------------------------------
+# Unlock Group
+# -------------------------------
 async def unlock_group(auto=False):
     rights = ChatBannedRights(send_messages=False)
     try:
@@ -47,7 +61,9 @@ async def unlock_group(auto=False):
     except Exception as e:
         print("Unlock error:", e)
 
-# --- /lock Command ---
+# -------------------------------
+# /lock Command
+# -------------------------------
 @client.on(events.NewMessage(pattern=r"^/lock(?: (\d+)h)?$"))
 async def lock_handler(event):
     if not await is_admin(event):
@@ -59,7 +75,9 @@ async def lock_handler(event):
     else:
         await lock_group()
 
-# --- /unlock Command ---
+# -------------------------------
+# /unlock Command
+# -------------------------------
 @client.on(events.NewMessage(pattern=r"^/unlock$"))
 async def unlock_handler(event):
     if not await is_admin(event):
@@ -67,7 +85,9 @@ async def unlock_handler(event):
         return
     await unlock_group()
 
-# --- /start Command ---
+# -------------------------------
+# /start Command
+# -------------------------------
 @client.on(events.NewMessage(pattern=r"^/start$"))
 async def start_handler(event):
     message = (
@@ -77,65 +97,28 @@ async def start_handler(event):
     )
     await event.reply(message)
 
-# --- Auto Night Lock (2AM–6AM) ---
+# -------------------------------
+# Auto Night Lock (2AM–6AM)
+# -------------------------------
 async def auto_night_lock():
     while True:
         now = datetime.now(bd_tz)
         if now.hour == 2 and now.minute == 0:
             await lock_group()
             await client.send_message(GROUP_ID, "🌙 রাত ২টা — গ্রুপটি স্বয়ংক্রিয়ভাবে বন্ধ হয়েছে (সকাল ৬টা পর্যন্ত)।")
-            await asyncio.sleep(4 * 3600)
+            await asyncio.sleep(4 * 3600)  # Wait 4 hours
             await unlock_group(auto=True)
-        await asyncio.sleep(30)
+        await asyncio.sleep(30)  # Check every 30 seconds
 
-# --- Main ---
+# -------------------------------
+# Main Function
+# -------------------------------
 async def main():
     asyncio.create_task(auto_night_lock())
     await client.run_until_disconnected()
 
-print("🚀 Smart Telegram Group Lock Bot started...")
-client.loop.run_until_complete(main())    rights = ChatBannedRights(send_messages=False)
-    try:
-        await client(functions.messages.EditChatDefaultBannedRights(peer=GROUP_ID, banned_rights=rights))
-        msg = "✅ নির্ধারিত সময় শেষ — গ্রুপটি আবার চালু করা হয়েছে 💫" if auto else "✅ গ্রুপটি আনলক করা হয়েছে, সবাই কথা বলতে পারেন 😄"
-        await client.send_message(GROUP_ID, msg)
-    except Exception as e:
-        print("Unlock error:", e)
-
-# /lock command
-@client.on(events.NewMessage(pattern=r"^/lock(?: (\d+)h)?$"))
-async def lock_handler(event):
-    if not await is_admin(event):
-        await event.reply("⚠️ শুধুমাত্র অ্যাডমিন এই কমান্ড ব্যবহার করতে পারবেন।")
-        return
-    duration = event.pattern_match.group(1)
-    if duration:
-        await lock_group(int(duration))
-    else:
-        await lock_group()
-
-# /unlock command
-@client.on(events.NewMessage(pattern=r"^/unlock$"))
-async def unlock_handler(event):
-    if not await is_admin(event):
-        await event.reply("⚠️ শুধুমাত্র অ্যাডমিন এই কমান্ড ব্যবহার করতে পারবেন।")
-        return
-    await unlock_group()
-
-# Auto night lock (2AM–6AM)
-async def auto_night_lock():
-    while True:
-        now = datetime.now(bd_tz)
-        if now.hour == 2 and now.minute == 0:
-            await lock_group()
-            await client.send_message(GROUP_ID, "🌙 রাত ২টা — গ্রুপটি স্বয়ংক্রিয়ভাবে বন্ধ হয়েছে (সকাল ৬টা পর্যন্ত)।")
-            await asyncio.sleep(4 * 3600)
-            await unlock_group(auto=True)
-        await asyncio.sleep(30)
-
-async def main():
-    asyncio.create_task(auto_night_lock())
-    await client.run_until_disconnected()
-
+# -------------------------------
+# Start Bot
+# -------------------------------
 print("🚀 Smart Telegram Group Lock Bot started...")
 client.loop.run_until_complete(main())
