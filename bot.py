@@ -1,3 +1,4 @@
+# bot.py
 from telethon import TelegramClient, events, functions
 from telethon.tl.types import ChatBannedRights
 from datetime import datetime
@@ -6,10 +7,10 @@ import asyncio, pytz, os
 # -------------------------------
 # Environment Variables
 # -------------------------------
-API_ID = int(os.getenv("API_ID", 1234567))
-API_HASH = os.getenv("API_HASH", "your_api_hash")
-BOT_TOKEN = os.getenv("BOT_TOKEN", "your_bot_token")
-GROUP_ID = int(os.getenv("GROUP_ID", "-1003083776944"))
+API_ID = int(os.getenv("API_ID"))
+API_HASH = os.getenv("API_HASH")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+GROUP_ID = int(os.getenv("GROUP_ID"))
 
 # -------------------------------
 # Initialize Client
@@ -22,8 +23,7 @@ bd_tz = pytz.timezone("Asia/Dhaka")
 # -------------------------------
 async def is_admin(event):
     if event.is_private:
-        return True  # প্রাইভেটে সবাই চালাতে পারবে (যেমন /start)
-    
+        return True
     try:
         participant = await client.get_participant(event.chat_id, event.sender)
         return getattr(participant, 'creator', False) or getattr(participant, 'admin_rights', None) is not None
@@ -45,7 +45,7 @@ async def lock_group(duration_hours=None):
             await asyncio.sleep(duration_hours * 3600)
             await unlock_group(auto=True)
         else:
-            await client.send_message(GROUP_ID, "গ্রুপটি এখন লক করা হয়েছে।")
+            await client.send_message(GROUP_ID, "গ্রুপ লক করা হয়েছে।")
     except Exception as e:
         print(f"[LOCK ERROR] {e}")
 
@@ -58,18 +58,17 @@ async def unlock_group(auto=False):
         await client(functions.messages.EditChatDefaultBannedRightsRequest(
             peer=GROUP_ID, banned_rights=rights
         ))
-        msg = "নির্ধারিত সময় শেষ। গ্রুপ আবার চালু হয়েছে" if auto else "গ্রুপ আনলক করা হয়েছে।"
+        msg = "নির্ধারিত সময় শেষ। গ্রুপ আবার চালু।" if auto else "গ্রুপ আনলক করা হয়েছে।"
         await client.send_message(GROUP_ID, msg)
     except Exception as e:
         print(f"[UNLOCK ERROR] {e}")
 
 # -------------------------------
-# /lockfor Command
+# /lockfor
 # -------------------------------
 @client.on(events.NewMessage(pattern=r"(?i)^/lockfor(?:\s+(\d+)h?)?$", chats=GROUP_ID, outgoing=False))
 async def lock_handler(event):
-    if event._handled:
-        return
+    if hasattr(event, "_handled"): return
     event._handled = True
 
     if not await is_admin(event):
@@ -80,10 +79,9 @@ async def lock_handler(event):
     if duration_str:
         try:
             hours = int(duration_str)
-            if hours <= 0:
-                raise ValueError
+            if hours <= 0: raise ValueError
             await lock_group(hours)
-            await event.reply(f"গ্রুপ {hours} ঘন্টার জন্য লক করা হয়েছে।")
+            await event.reply(f"গ্রুপ {hours} ঘন্টার জন্য লক।")
         except ValueError:
             await event.reply("ভুল ফরম্যাট। ব্যবহার: `/lockfor 5h` বা `/lockfor 5`")
     else:
@@ -91,12 +89,11 @@ async def lock_handler(event):
         await event.reply("গ্রুপ লক করা হয়েছে।")
 
 # -------------------------------
-# /openchat Command
+# /openchat
 # -------------------------------
 @client.on(events.NewMessage(pattern=r"(?i)^/openchat$", chats=GROUP_ID, outgoing=False))
 async def unlock_handler(event):
-    if event._handled:
-        return
+    if hasattr(event, "_handled"): return
     event._handled = True
 
     if not await is_admin(event):
@@ -107,28 +104,22 @@ async def unlock_handler(event):
     await event.reply("গ্রুপ আনলক করা হয়েছে।")
 
 # -------------------------------
-# /start Command (No Duplicate, Private + Group)
+# /start (No Duplicate)
 # -------------------------------
 @client.on(events.NewMessage(pattern=r"(?i)^/start(@\w+)?$", outgoing=False))
 async def start_handler(event):
-    if event._handled:
-        return
+    if hasattr(event, "_handled"): return
     event._handled = True
 
     if event.is_private:
         message = (
-            "হ্যালো! আমি **KDex Group** এর দায়িত্বশীল বট।\n"
-            "দয়া করে আমাকে নাড়াচাড়া করবেন না\n\n"
+            "হ্যালো! আমি **KDex Group** এর বট।\n\n"
             "আমার কাজ:\n"
             "• গ্রুপ স্বয়ংক্রিয়ভাবে লক/আনলক\n"
             "• শৃঙ্খলা বজায় রাখা"
         )
     else:
-        message = (
-            "হ্যালো! আমি **KDex Group** এর বট।\n"
-            "আমি গ্রুপ লক/আনলক করি।\n"
-            "কমান্ড: `/lockfor 5h`, `/openchat`"
-        )
+        message = "হ্যালো! আমি গ্রুপ লক/আনলক বট। `/lockfor 5h`, `/openchat`"
     await event.reply(message)
 
 # -------------------------------
@@ -143,7 +134,7 @@ async def auto_night_lock():
                 print("[AUTO] রাত ২টা – লক করা হচ্ছে...")
                 await lock_group(4)
                 await client.send_message(GROUP_ID, "রাত ২টা। গ্রুপ স্বয়ংক্রিয়ভাবে বন্ধ (সকাল ৬টা পর্যন্ত)।")
-                await asyncio.sleep(3600)  # 1 ঘন্টা পরে আবার চেক
+                await asyncio.sleep(3600)
             else:
                 await asyncio.sleep(30)
         except Exception as e:
@@ -159,7 +150,8 @@ async def main():
     await client.run_until_disconnected()
 
 # -------------------------------
-# Start Bot
+# Start
 # -------------------------------
-with client:
-    client.loop.run_until_complete(main())
+if __name__ == "__main__":
+    with client:
+        client.loop.run_until_complete(main())
