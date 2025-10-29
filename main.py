@@ -64,10 +64,10 @@ async def unlock_group(auto=False):
 # -------------------------------
 # /lock Command
 # -------------------------------
-@client.on(events.NewMessage(pattern=r"^/lock(?: (\d+)h)?$"))
+@client.on(events.NewMessage(pattern=r"^/lockfor(?: (\d+)h)?$"))
 async def lock_handler(event):
     if not await is_admin(event):
-        await event.reply("⚠️ শুধুমাত্র অ্যাডমিন এই কমান্ড ব্যবহার করতে পারবে।")
+        await event.reply("⚠️ শুধুমাত্র অ্যাডমিন এই কমান্ড ব্যবহার করতে পারবেন।")
         return
     duration = event.pattern_match.group(1)
     if duration:
@@ -78,13 +78,12 @@ async def lock_handler(event):
 # -------------------------------
 # /unlock Command
 # -------------------------------
-@client.on(events.NewMessage(pattern=r"^/unlock$"))
+@client.on(events.NewMessage(pattern=r"^/openchat$"))
 async def unlock_handler(event):
     if not await is_admin(event):
-        await event.reply("⚠️ শুধুমাত্র অ্যাডমিন এই কমান্ড ব্যবহার করতে পারবে।")
+        await event.reply("⚠️ শুধুমাত্র অ্যাডমিন এই কমান্ড ব্যবহার করতে পারবেন।")
         return
     await unlock_group()
-
 # -------------------------------
 # /start Command
 # -------------------------------
