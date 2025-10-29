@@ -1,5 +1,5 @@
 from telethon import TelegramClient, events, functions
-from telethon.tl.types import ChannelParticipantsAdmins, ChatBannedRights
+from telethon.tl.types import ChatBannedRights
 from datetime import datetime
 import asyncio, pytz, os
 
@@ -9,7 +9,7 @@ import asyncio, pytz, os
 API_ID = int(os.getenv("API_ID", 1234567))
 API_HASH = os.getenv("API_HASH", "your_api_hash")
 BOT_TOKEN = os.getenv("BOT_TOKEN", "your_bot_token")
-GROUP_ID = int(os.getenv("GROUP_ID", "-1003083776944"))  # Make sure ENV is string
+GROUP_ID = int(os.getenv("GROUP_ID", "-1003083776944"))
 
 # -------------------------------
 # Initialize Client
@@ -18,12 +18,16 @@ client = TelegramClient("bot", API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 bd_tz = pytz.timezone("Asia/Dhaka")
 
 # -------------------------------
-# Admin Check
+# Admin Check using GetParticipant
 # -------------------------------
 async def is_admin(event):
     try:
-        admins = await client.get_participants(event.chat_id, filter=ChannelParticipantsAdmins)
-        return any(admin.id == event.sender_id for admin in admins)
+        result = await client(functions.channels.GetParticipantRequest(
+            channel=event.chat_id,
+            participant=event.sender_id
+        ))
+        participant = result.participant
+        return getattr(participant, 'admin_rights', None) is not None
     except:
         return False
 
@@ -62,9 +66,9 @@ async def unlock_group(auto=False):
         print("Unlock error:", e)
 
 # -------------------------------
-# /lockfor Command (ছোট হাতের জন্য)
+# /lockfor Command (case-insensitive)
 # -------------------------------
-@client.on(events.NewMessage(pattern=r"^/lockfor(?: (\d+)h)?$"))
+@client.on(events.NewMessage(pattern=r"^/lockfor(?: (\d+)h)?$", func=lambda e: True))
 async def lock_handler(event):
     if not await is_admin(event):
         await event.reply("⚠️ শুধুমাত্র অ্যাডমিন এই কমান্ড ব্যবহার করতে পারবেন।")
@@ -76,9 +80,9 @@ async def lock_handler(event):
         await lock_group()
 
 # -------------------------------
-# /openchat Command (ছোট হাতের জন্য)
+# /openchat Command (case-insensitive)
 # -------------------------------
-@client.on(events.NewMessage(pattern=r"^/openchat$"))
+@client.on(events.NewMessage(pattern=r"^/openchat$", func=lambda e: True))
 async def unlock_handler(event):
     if not await is_admin(event):
         await event.reply("⚠️ শুধুমাত্র অ্যাডমিন এই কমান্ড ব্যবহার করতে পারবেন।")
@@ -88,9 +92,8 @@ async def unlock_handler(event):
 # -------------------------------
 # /start Command (private, group & mention)
 # -------------------------------
-@client.on(events.NewMessage(pattern=r"^/start(@\w+)?$"))
+@client.on(events.NewMessage(pattern=r"^/start(@\w+)?$", func=lambda e: True))
 async def start_handler(event):
-    # Duplicate reply prevention
     if getattr(event, "_handled", False):
         return
     event._handled = True
@@ -98,8 +101,8 @@ async def start_handler(event):
     if event.is_private:
         message = (
             "🤖 হ্যালো! আমি **KDex Group** এর একজন দায়িত্বশীল বট।\n"
-            "দয়া করে আমাকে নাড়াচাড়া করবেন না, আমি অনেক ব্যস্ত 😌\n\n"
-            "🔐 আমার কাজ: স্বয়ংক্রিয়ভাবে গ্রুপ লক/আনলক করা এবং শৃঙ্খলা বজায় রাখা।"
+            "দয়া করে আমাকে নাড়াচাড়া করবেন না 😌\n\n"
+            "🔐 আমার কাজ: স্বয়ংক্রিয়ভাবে গ্রুপ লক আনলক করা এবং শৃঙ্খলা বজায় রাখা।"
         )
     else:
         message = (
@@ -118,7 +121,7 @@ async def auto_night_lock():
         if now.hour == 2 and now.minute == 0:
             await lock_group()
             await client.send_message(GROUP_ID, "🌙 এখন রাত ২টা গ্রুপটি স্বয়ংক্রিয়ভাবে বন্ধ হয়েছে (সকাল ৬টা পর্যন্ত)।")
-            await asyncio.sleep(4 * 3600)  # Wait 4 hours
+            await asyncio.sleep(4 * 3600)
             await unlock_group(auto=True)
         await asyncio.sleep(30)
 
