@@ -1,5 +1,5 @@
 services:
-  - type: web  # Web Service (Free available)
+  - type: web
     name: kdex-group-bot
     env: python
     region: oregon
@@ -15,4 +15,5 @@ services:
       GROUP_ID:
         sync: false
       WEBHOOK_URL:
-        sync: false  # তোমার Render URL + /webhook
+        sync: false
+      PORT: "10000"  # এটা যোগ করো
