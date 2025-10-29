@@ -1,5 +1,5 @@
 services:
-  - type: worker
+  - type: web  # Web Service (Free available)
     name: kdex-group-bot
     env: python
     region: oregon
@@ -14,3 +14,5 @@ services:
         sync: false
       GROUP_ID:
         sync: false
+      WEBHOOK_URL:
+        sync: false  # তোমার Render URL + /webhook
