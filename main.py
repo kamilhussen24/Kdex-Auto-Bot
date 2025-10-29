@@ -1,7 +1,7 @@
 from telethon import TelegramClient, events, functions
 from telethon.tl.types import ChannelParticipantsAdmins, ChatBannedRights
 from datetime import datetime
-import asyncio, pytz, os
+import asyncio, pytz, os, re
 
 # -------------------------------
 # Environment Variables
@@ -9,7 +9,7 @@ import asyncio, pytz, os
 API_ID = int(os.getenv("API_ID", 1234567))
 API_HASH = os.getenv("API_HASH", "your_api_hash")
 BOT_TOKEN = os.getenv("BOT_TOKEN", "your_bot_token")
-GROUP_ID = int(os.getenv("GROUP_ID", "-1003083776944"))  # Ensure it's a string in ENV
+GROUP_ID = int(os.getenv("GROUP_ID", "-1003083776944"))
 
 # -------------------------------
 # Initialize Client
@@ -62,9 +62,9 @@ async def unlock_group(auto=False):
         print("Unlock error:", e)
 
 # -------------------------------
-# /lock Command
+# /lockfor Command (Case-insensitive)
 # -------------------------------
-@client.on(events.NewMessage(pattern=r"^/lockfor(?: (\d+)h)?$"))
+@client.on(events.NewMessage(pattern=r"^/lockfor(?: (\d+)h)?$", flags=re.IGNORECASE))
 async def lock_handler(event):
     if not await is_admin(event):
         await event.reply("⚠️ শুধুমাত্র অ্যাডমিন এই কমান্ড ব্যবহার করতে পারবেন।")
@@ -76,24 +76,39 @@ async def lock_handler(event):
         await lock_group()
 
 # -------------------------------
-# /unlock Command
+# /openchat Command (Case-insensitive)
 # -------------------------------
-@client.on(events.NewMessage(pattern=r"^/openchat$"))
+@client.on(events.NewMessage(pattern=r"^/openchat$", flags=re.IGNORECASE))
 async def unlock_handler(event):
     if not await is_admin(event):
         await event.reply("⚠️ শুধুমাত্র অ্যাডমিন এই কমান্ড ব্যবহার করতে পারবেন।")
         return
     await unlock_group()
+
 # -------------------------------
-# /start Command
+# /start Command (private, group & mention)
 # -------------------------------
-@client.on(events.NewMessage(pattern=r"^/start$"))
+@client.on(events.NewMessage(pattern=r"^/start(@\w+)?$", flags=re.IGNORECASE))
 async def start_handler(event):
-    message = (
-        "🤖 হ্যালো! আমি **KDex Group** এর একজন দায়িত্বশীল বট।\n"
-        "দয়া করে আমাকে নাড়াচাড়া করবেন না, আমি অনেক ব্যস্ত থাকি সবসময় 😌\n\n"
-        "🔐 আমার কাজ: স্বয়ংক্রিয়ভাবে গ্রুপ লক আনলক করা এবং শৃঙ্খলা বজায় রাখা।"
-    )
+    # Prevent duplicate reply for same message
+    if getattr(event, "_handled", False):
+        return
+    event._handled = True
+
+    if event.is_private:
+        # Private chat reply
+        message = (
+            "🤖 হ্যালো! আমি **KDex Group** এর একজন দায়িত্বশীল বট।\n"
+            "দয়া করে আমাকে নাড়াচাড়া করবেন না, আমি অনেক ব্যস্ত 😌\n\n"
+            "🔐 আমার কাজ: স্বয়ংক্রিয়ভাবে গ্রুপ লক/আনলক করা এবং শৃঙ্খলা বজায় রাখা।"
+        )
+    else:
+        # Group chat reply
+        message = (
+            "🤖 হ্যালো! আমি **KDex Group** এর একজন দায়িত্বশীল বট।\n"
+            "দয়া করে আমাকে বিরক্ত করবেন না 😌\n\n"
+            "🔐 আমার কাজ: স্বয়ংক্রিয়ভাবে গ্রুপ লক/আনলক করা এবং শৃঙ্খলা বজায় রাখা।"
+        )
     await event.reply(message)
 
 # -------------------------------
