@@ -1,0 +1,16 @@
+services:
+  - type: worker
+    name: kdex-group-bot
+    env: python
+    region: oregon
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py
+    envVars:
+      API_ID:
+        sync: false
+      API_HASH:
+        sync: false
+      BOT_TOKEN:
+        sync: false
+      GROUP_ID:
+        sync: false
